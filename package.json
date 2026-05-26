@@ -1,0 +1,22 @@
+{
+  "name": "budget-thing",
+  "version": "1.0.0",
+  "description": "Personal monthly budget tracker",
+  "module": "src/server.ts",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "seed": "bun run src/seed.ts",
+    "webhook": "bun run src/webhook.ts",
+    "lint": "bunx eslint src/ public/js/"
+  },
+  "dependencies": {
+    "hono": "^4.5.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.9.0"
+  }
+}
