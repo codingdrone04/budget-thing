@@ -607,3 +607,57 @@ body {
   font-size: 15px;
   line-height: 1.8;
 }
+
+/* ─── Mobile (phone) : pile verticale type app ───────────────────── */
+/* Placé en fin de fichier pour primer sur les règles de base à spécificité égale */
+@media (max-width: 640px) {
+  html, body { height: auto; min-height: 100%; }
+
+  .layout {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .sidebar {
+    width: 100%;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: calc(env(safe-area-inset-top) + 12px) 0 12px;
+  }
+
+  /* Les liens d'ancrage ne servent à rien sur une page qui défile */
+  .sidebar-nav { display: none; }
+
+  .summary-panel {
+    margin-top: 0;
+    border-top: none;
+  }
+
+  .main-content {
+    overflow: visible;
+    padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .page-header { margin-bottom: 16px; }
+  .page-title { font-size: 20px; }
+
+  .sections-grid { gap: 14px; }
+
+  /* Pas de survol au tactile : bouton supprimer toujours visible */
+  .btn-delete { opacity: 1; }
+
+  /* Plus grosses zones tactiles + édition sans zoom au double-tap */
+  .cell-label,
+  .cell-montant {
+    padding-top: 13px;
+    padding-bottom: 13px;
+    touch-action: manipulation;
+  }
+
+  /* iOS zoome si la police d'un champ < 16px */
+  .inline-edit,
+  .modal-body input,
+  .login-input { font-size: 16px; }
+}
