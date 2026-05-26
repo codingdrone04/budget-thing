@@ -54,7 +54,7 @@ Bun.serve({
 
     try {
       await $`git -C ${import.meta.dir}/.. pull origin main`;
-      await $`systemctl restart budget-thing`;
+      await $`sudo systemctl restart budget-thing`;
       console.log("Webhook: deploy complete");
       return new Response("Deployed", { status: 200 });
     } catch (err) {
