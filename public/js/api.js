@@ -1,5 +1,5 @@
 function getApiKey() {
-  return localStorage.getItem("bt_api_key") || CONFIG.API_KEY;
+  return localStorage.getItem("bt_api_key") ?? "";
 }
 
 async function apiFetch(path, options = {}) {
