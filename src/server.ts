@@ -191,6 +191,7 @@ app.get("/index.html", noStoreHandler("./public/index.html", "text/html; charset
 app.get("/style.css", noStoreHandler("./public/style.css", "text/css; charset=utf-8"));
 app.get("/js/api.js", noStoreHandler("./public/js/api.js", "application/javascript; charset=utf-8"));
 app.get("/js/app.js", noStoreHandler("./public/js/app.js", "application/javascript; charset=utf-8"));
+app.get("/manifest.webmanifest", noStoreHandler("./public/manifest.webmanifest", "application/manifest+json; charset=utf-8"));
 
 // Serve remaining static assets (images, fonts, etc.)
 app.use("/*", serveStatic({ root: "./public" }));
