@@ -2,6 +2,8 @@ import { $ } from "bun";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const WEBHOOK_PORT = Number(process.env.WEBHOOK_PORT ?? 9000);
+const MAX_BODY_BYTES = 64 * 1024;
+const MAX_CLOCK_SKEW_SEC = 300;
 
 if (!WEBHOOK_SECRET) {
   console.error("ERROR: WEBHOOK_SECRET is not set in .env");
@@ -37,7 +39,16 @@ Bun.serve({
       return new Response("Not Found", { status: 404 });
     }
 
+    const contentLength = Number(req.headers.get("content-length") ?? 0);
+    if (contentLength > MAX_BODY_BYTES) {
+      return new Response("Payload too large", { status: 413 });
+    }
+
     const body = await req.text();
+    if (body.length > MAX_BODY_BYTES) {
+      return new Response("Payload too large", { status: 413 });
+    }
+
     const signature = req.headers.get("x-hub-signature-256");
 
     if (!(await verifySignature(body, signature))) {
@@ -45,7 +56,20 @@ Bun.serve({
       return new Response("Unauthorized", { status: 401 });
     }
 
-    const payload = JSON.parse(body);
+    let payload: { ref?: string; ts?: number };
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    const ts = Number(payload.ts);
+    const now = Math.floor(Date.now() / 1000);
+    if (!Number.isFinite(ts) || Math.abs(now - ts) > MAX_CLOCK_SKEW_SEC) {
+      console.warn("Webhook: stale or missing timestamp");
+      return new Response("Stale request", { status: 401 });
+    }
+
     if (payload.ref !== "refs/heads/main") {
       return new Response("Ignored (not main)", { status: 200 });
     }
