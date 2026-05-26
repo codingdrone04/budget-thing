@@ -95,3 +95,4 @@ DELETE /api/budget/:section/:id → supprimer une ligne
 
 Sections valides : `revenus`, `depenses_communes`, `depenses_fixes`, `depenses_annuelles`
 
+s
