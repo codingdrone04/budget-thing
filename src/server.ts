@@ -110,6 +110,15 @@ app.delete("/api/budget/:section/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// Serve config.js dynamically so Cloudflare never caches the real API key
+app.get("/js/config.js", (c) => {
+  c.header("Content-Type", "application/javascript");
+  c.header("Cache-Control", "no-store");
+  return c.body(
+    `const CONFIG = {\n  API_BASE_URL: "${process.env.API_BASE_URL ?? ""}",\n  API_KEY: "change-me-to-your-api-key",\n};\n`
+  );
+});
+
 // Serve static frontend
 app.use("/*", serveStatic({ root: "./public" }));
 app.use("/*", serveStatic({ path: "./public/index.html" }));

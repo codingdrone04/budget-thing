@@ -311,14 +311,16 @@ async function init() {
     hideLogin();
     renderAll();
   } catch (err) {
-    if (err.message !== "Unauthorized") {
-      document.getElementById("main-content").innerHTML =
-        `<div class="error-state">Impossible de charger les données.<br><small>${err.message}</small></div>`;
+    localStorage.removeItem("bt_api_key");
+    if (err.message === "Unauthorized") {
+      showLogin("Clé API incorrecte.");
+    } else {
+      showLogin(err.message);
     }
   }
 }
 
-if (localStorage.getItem("bt_api_key") || CONFIG.API_KEY !== "change-me-to-your-api-key") {
+if (localStorage.getItem("bt_api_key")) {
   init();
 } else {
   showLogin();
