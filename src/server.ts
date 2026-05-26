@@ -1,0 +1,122 @@
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { serveStatic } from "hono/bun";
+import { v4 as uuidv4 } from "uuid";
+import { readBudget, writeBudget } from "./storage";
+import { SECTIONS } from "./types";
+import type { Section } from "./types";
+
+const API_KEY = process.env.API_KEY;
+const PORT = Number(process.env.PORT ?? 3000);
+
+if (!API_KEY) {
+  console.error("ERROR: API_KEY is not set in .env");
+  process.exit(1);
+}
+
+const app = new Hono();
+
+app.use("/api/*", cors());
+
+app.use("/api/*", async (c, next) => {
+  const key = c.req.header("X-API-Key");
+  if (key !== API_KEY) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  await next();
+});
+
+// GET /api/budget
+app.get("/api/budget", async (c) => {
+  const budget = await readBudget();
+  return c.json(budget);
+});
+
+// PATCH /api/budget/:section/:id
+app.patch("/api/budget/:section/:id", async (c) => {
+  const section = c.req.param("section") as Section;
+  const id = c.req.param("id");
+
+  if (!SECTIONS.includes(section)) {
+    return c.json({ error: "Invalid section" }, 400);
+  }
+
+  const body = await c.req.json();
+  const budget = await readBudget();
+  const items = budget[section] as Array<Record<string, unknown>>;
+  const idx = items.findIndex((item) => item.id === id);
+
+  if (idx === -1) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  if (body.label !== undefined) items[idx].label = String(body.label);
+
+  if (section === "depenses_annuelles") {
+    if (body.montant_annuel !== undefined)
+      items[idx].montant_annuel = Number(body.montant_annuel);
+  } else {
+    if (body.montant !== undefined) items[idx].montant = Number(body.montant);
+  }
+
+  await writeBudget(budget);
+  return c.json(items[idx]);
+});
+
+// POST /api/budget/:section
+app.post("/api/budget/:section", async (c) => {
+  const section = c.req.param("section") as Section;
+
+  if (!SECTIONS.includes(section)) {
+    return c.json({ error: "Invalid section" }, 400);
+  }
+
+  const body = await c.req.json();
+  const budget = await readBudget();
+  const items = budget[section] as Array<Record<string, unknown>>;
+
+  const newItem: Record<string, unknown> = { id: uuidv4(), label: body.label ?? "" };
+
+  if (section === "depenses_annuelles") {
+    newItem.montant_annuel = Number(body.montant_annuel ?? 0);
+  } else {
+    newItem.montant = Number(body.montant ?? 0);
+  }
+
+  items.push(newItem);
+  await writeBudget(budget);
+  return c.json(newItem, 201);
+});
+
+// DELETE /api/budget/:section/:id
+app.delete("/api/budget/:section/:id", async (c) => {
+  const section = c.req.param("section") as Section;
+  const id = c.req.param("id");
+
+  if (!SECTIONS.includes(section)) {
+    return c.json({ error: "Invalid section" }, 400);
+  }
+
+  const budget = await readBudget();
+  const items = budget[section] as Array<Record<string, unknown>>;
+  const idx = items.findIndex((item) => item.id === id);
+
+  if (idx === -1) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  items.splice(idx, 1);
+  await writeBudget(budget);
+  return c.json({ ok: true });
+});
+
+// Serve static frontend
+app.use("/*", serveStatic({ root: "./public" }));
+app.use("/*", serveStatic({ path: "./public/index.html" }));
+
+export default {
+  port: PORT,
+  fetch: app.fetch,
+};
+
+console.log(`budget-thing running on port ${PORT}`);
