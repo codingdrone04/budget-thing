@@ -65,6 +65,8 @@ body {
   overflow: hidden;
 }
 
+.layout.hidden { display: none; }
+
 /* ─── Sidebar ────────────────────────────────────────────────────── */
 .sidebar {
   width: var(--sidebar-width);
