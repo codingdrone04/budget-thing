@@ -513,6 +513,79 @@ body {
   line-height: 1.6;
 }
 
+/* ─── Login screen ───────────────────────────────────────────────── */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.login-screen.hidden { display: none; }
+
+.login-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 360px;
+  padding: 24px;
+}
+
+.login-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.login-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.login-input {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 15px;
+  font-family: var(--font);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--transition);
+  width: 100%;
+}
+
+.login-input:focus { border-color: var(--accent); }
+
+.login-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.login-error {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--red);
+  text-align: center;
+}
+
+.login-error.hidden { display: none; }
+
 /* ─── Error state ────────────────────────────────────────────────── */
 .error-state {
   padding: 40px;

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="#ffffff"/>
+  <!-- Outer diamond -->
+  <rect x="162" y="162" width="700" height="700" rx="60" fill="#d97757" transform="rotate(45 512 512)"/>
+  <!-- Inner diamond (cutout style) -->
+  <rect x="262" y="262" width="500" height="500" rx="40" fill="#ffffff" transform="rotate(45 512 512)"/>
+  <!-- Center diamond filled -->
+  <rect x="362" y="362" width="300" height="300" rx="24" fill="#d97757" transform="rotate(45 512 512)"/>
+</svg>
