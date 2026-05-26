@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>budget-thing</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <svg class="brand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span class="brand-name">budget-thing</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-link active" data-target="section-revenus" href="#">
+          <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Revenus
+        </a>
+        <a class="nav-link" data-target="section-depenses_communes" href="#">
+          <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Dépenses communes
+        </a>
+        <a class="nav-link" data-target="section-depenses_fixes" href="#">
+          <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Dépenses fixes
+        </a>
+        <a class="nav-link" data-target="section-depenses_annuelles" href="#">
+          <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Annuelles
+        </a>
+      </nav>
+
+      <!-- Summary panel -->
+      <div class="summary-panel">
+        <div class="summary-title">Bilan mensuel</div>
+
+        <div class="summary-row">
+          <span class="summary-label">Revenus</span>
+          <span class="summary-value positive" id="sum-revenus">—</span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-row">
+          <span class="summary-label">Communes</span>
+          <span class="summary-value" id="sum-communes">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Fixes</span>
+          <span class="summary-value" id="sum-fixes">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Annuelles ÷12</span>
+          <span class="summary-value" id="sum-annuelles">—</span>
+        </div>
+        <div class="summary-row summary-row-total">
+          <span class="summary-label">Total dépenses</span>
+          <span class="summary-value negative" id="sum-depenses">—</span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-row summary-row-roulement">
+          <span class="summary-label">Roulement</span>
+          <span class="summary-value roulement-value" id="sum-roulement">—</span>
+        </div>
+
+        <div class="progress-bar">
+          <div class="progress-fill positive" id="progress-bar-fill" style="width: 0%"></div>
+        </div>
+        <div class="progress-label" id="progress-bar-label"></div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content" id="main-content">
+      <div class="page-header">
+        <h1 class="page-title">Budget mensuel</h1>
+        <span class="page-subtitle">Double-cliquez sur un montant ou libellé pour le modifier</span>
+      </div>
+
+      <div class="sections-grid">
+        <div class="budget-section" id="section-revenus"></div>
+        <div class="budget-section" id="section-depenses_communes"></div>
+        <div class="budget-section" id="section-depenses_fixes"></div>
+        <div class="budget-section" id="section-depenses_annuelles"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop hidden" id="modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title"></h2>
+      </div>
+      <form class="modal-body" id="modal-form"></form>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

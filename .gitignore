@@ -1,0 +1,6 @@
+node_modules/
+.env
+budget.json
+*.log
+bun.lockb
+public/js/config.js

@@ -1,0 +1,15 @@
+[Unit]
+Description=budget-thing webhook deploy server
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_LINUX_USER
+WorkingDirectory=/home/YOUR_LINUX_USER/budget-thing
+EnvironmentFile=/home/YOUR_LINUX_USER/budget-thing/.env
+ExecStart=/usr/local/bin/bun run src/webhook.ts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
