@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Trigger webhook on Thinkpad
         run: |
-          PAYLOAD='{"ref":"refs/heads/main"}'
+          PAYLOAD="{\"ref\":\"refs/heads/main\",\"ts\":$(date +%s)}"
           SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | awk '{print $2}')"
           curl -f -X POST "${{ secrets.WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \

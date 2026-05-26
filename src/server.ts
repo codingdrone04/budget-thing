@@ -25,6 +25,28 @@ function safeEqual(a: string, b: string): boolean {
 
 const app = new Hono();
 
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+].join("; ");
+
+app.use("*", async (c, next) => {
+  await next();
+  c.header("Content-Security-Policy", CSP);
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Referrer-Policy", "no-referrer");
+  c.header("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  c.header("Cross-Origin-Opener-Policy", "same-origin");
+});
+
 app.use(
   "/api/*",
   cors({
@@ -57,7 +79,13 @@ app.patch("/api/budget/:section/:id", async (c) => {
     return c.json({ error: "Invalid section" }, 400);
   }
 
-  const body = await c.req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+
   const budget = await readBudget();
   const items = budget[section] as Array<Record<string, unknown>>;
   const idx = items.findIndex((item) => item.id === id);
@@ -68,11 +96,13 @@ app.patch("/api/budget/:section/:id", async (c) => {
 
   if (body.label !== undefined) items[idx].label = String(body.label);
 
-  if (section === "depenses_annuelles") {
-    if (body.montant_annuel !== undefined)
-      items[idx].montant_annuel = Number(body.montant_annuel);
-  } else {
-    if (body.montant !== undefined) items[idx].montant = Number(body.montant);
+  const amountKey = section === "depenses_annuelles" ? "montant_annuel" : "montant";
+  if (body[amountKey] !== undefined) {
+    const value = Number(body[amountKey]);
+    if (!Number.isFinite(value)) {
+      return c.json({ error: `Invalid ${amountKey}` }, 400);
+    }
+    items[idx][amountKey] = value;
   }
 
   await writeBudget(budget);
@@ -87,17 +117,27 @@ app.post("/api/budget/:section", async (c) => {
     return c.json({ error: "Invalid section" }, 400);
   }
 
-  const body = await c.req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+
   const budget = await readBudget();
   const items = budget[section] as Array<Record<string, unknown>>;
 
-  const newItem: Record<string, unknown> = { id: uuidv4(), label: body.label ?? "" };
-
-  if (section === "depenses_annuelles") {
-    newItem.montant_annuel = Number(body.montant_annuel ?? 0);
-  } else {
-    newItem.montant = Number(body.montant ?? 0);
+  const amountKey = section === "depenses_annuelles" ? "montant_annuel" : "montant";
+  const value = Number(body[amountKey] ?? 0);
+  if (!Number.isFinite(value)) {
+    return c.json({ error: `Invalid ${amountKey}` }, 400);
   }
+
+  const newItem: Record<string, unknown> = {
+    id: uuidv4(),
+    label: String(body.label ?? ""),
+    [amountKey]: value,
+  };
 
   items.push(newItem);
   await writeBudget(budget);
