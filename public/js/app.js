@@ -245,12 +245,13 @@ function confirmDelete(section, id, label) {
 
   modalTitle.textContent = "Supprimer";
   modalForm.innerHTML = `
-    <p class="confirm-text">Supprimer <strong>${label}</strong> ?</p>
+    <p class="confirm-text">Supprimer <strong></strong> ?</p>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="modal-cancel">Annuler</button>
       <button type="button" class="btn-danger" id="modal-confirm-delete">Supprimer</button>
     </div>
   `;
+  modalForm.querySelector(".confirm-text strong").textContent = label;
 
   modal.classList.remove("hidden");
 
