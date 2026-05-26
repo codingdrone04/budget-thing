@@ -14,13 +14,29 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 const app = new Hono();
 
-app.use("/api/*", cors());
+app.use(
+  "/api/*",
+  cors({
+    origin: process.env.API_BASE_URL ?? [],
+    allowHeaders: ["Content-Type", "X-API-Key"],
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  })
+);
 
 app.use("/api/*", async (c, next) => {
   const key = c.req.header("X-API-Key");
-  if (key !== API_KEY) {
+  if (!key || !safeEqual(key, API_KEY)) {
     return c.json({ error: "Unauthorized" }, 401);
   }
   await next();
