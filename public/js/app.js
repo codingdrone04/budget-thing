@@ -280,13 +280,46 @@ document.querySelectorAll(".nav-link").forEach((link) => {
   });
 });
 
+// Login
+function showLogin(errorMsg = "") {
+  document.getElementById("login-screen").classList.remove("hidden");
+  document.getElementById("app-layout").classList.add("hidden");
+  if (errorMsg) {
+    document.getElementById("login-error").textContent = errorMsg;
+    document.getElementById("login-error").classList.remove("hidden");
+  }
+  document.getElementById("login-key-input").focus();
+}
+
+function hideLogin() {
+  document.getElementById("login-screen").classList.add("hidden");
+  document.getElementById("app-layout").classList.remove("hidden");
+}
+
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const key = document.getElementById("login-key-input").value.trim();
+  if (!key) return;
+  localStorage.setItem("bt_api_key", key);
+  await init();
+});
+
 // Init
-(async () => {
+async function init() {
   try {
     budget = await api.getBudget();
+    hideLogin();
     renderAll();
   } catch (err) {
-    document.getElementById("main-content").innerHTML =
-      `<div class="error-state">Impossible de charger les données.<br><small>${err.message}</small></div>`;
+    if (err.message !== "Unauthorized") {
+      document.getElementById("main-content").innerHTML =
+        `<div class="error-state">Impossible de charger les données.<br><small>${err.message}</small></div>`;
+    }
   }
-})();
+}
+
+if (localStorage.getItem("bt_api_key") || CONFIG.API_KEY !== "change-me-to-your-api-key") {
+  init();
+} else {
+  showLogin();
+}
