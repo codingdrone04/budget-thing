@@ -119,7 +119,24 @@ app.get("/js/config.js", (c) => {
   );
 });
 
-// Serve static frontend
+// Serve HTML, JS, CSS with no-store so Cloudflare never caches app logic
+function noStoreHandler(filePath: string, contentType: string) {
+  return async (c: any) => {
+    const file = Bun.file(filePath);
+    if (!(await file.exists())) return c.notFound();
+    c.header("Content-Type", contentType);
+    c.header("Cache-Control", "no-store");
+    return c.body(await file.text());
+  };
+}
+
+app.get("/", noStoreHandler("./public/index.html", "text/html; charset=utf-8"));
+app.get("/index.html", noStoreHandler("./public/index.html", "text/html; charset=utf-8"));
+app.get("/style.css", noStoreHandler("./public/style.css", "text/css; charset=utf-8"));
+app.get("/js/api.js", noStoreHandler("./public/js/api.js", "application/javascript; charset=utf-8"));
+app.get("/js/app.js", noStoreHandler("./public/js/app.js", "application/javascript; charset=utf-8"));
+
+// Serve remaining static assets (images, fonts, etc.)
 app.use("/*", serveStatic({ root: "./public" }));
 app.use("/*", serveStatic({ path: "./public/index.html" }));
 
