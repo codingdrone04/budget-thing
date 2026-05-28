@@ -77,8 +77,9 @@ Bun.serve({
     console.log("Webhook: deploying...");
 
     try {
-      await $`git -C ${import.meta.dir}/.. pull origin main`;
-      await $`sudo systemctl restart budget-thing`;
+      const projectDir = `${import.meta.dir}/..`;
+      await $`git -C ${projectDir} pull origin main`;
+      await $`docker compose -f ${projectDir}/docker-compose.yml up -d --build`;
       console.log("Webhook: deploy complete");
       return new Response("Deployed", { status: 200 });
     } catch (err) {
