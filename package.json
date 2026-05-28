@@ -6,6 +6,7 @@
   "scripts": {
     "start": "bun run src/server.ts",
     "seed": "bun run src/seed.ts",
+    "migrate": "bun run src/migrate.ts",
     "webhook": "bun run src/webhook.ts",
     "lint": "bunx eslint src/ public/js/"
   },
