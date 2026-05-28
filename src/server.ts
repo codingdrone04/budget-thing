@@ -1,29 +1,37 @@
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
-import { v4 as uuidv4 } from "uuid";
-import { readBudget, writeBudget } from "./storage";
+import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { db } from "./db";
+import { readBudget, createBudgetItem, updateBudgetItem, deleteBudgetItem } from "./storage";
 import { SECTIONS } from "./types";
 import type { Section } from "./types";
+import {
+  COOKIE_NAME,
+  createSession,
+  getSession,
+  deleteSession,
+  findUserByUsername,
+  createUser,
+  getUserById,
+} from "./auth";
 
-const API_KEY = process.env.API_KEY;
 const PORT = Number(process.env.PORT ?? 3000);
+const SECURE_COOKIES = process.env.SECURE_COOKIES === "true";
 
-if (!API_KEY) {
-  console.error("ERROR: API_KEY is not set in .env");
-  process.exit(1);
-}
-
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+// Create initial user on first boot if env vars are set and no users exist
+if (process.env.INITIAL_USERNAME && process.env.INITIAL_PASSWORD) {
+  const row = db
+    .query<{ count: number }, []>("SELECT COUNT(*) as count FROM users")
+    .get();
+  if ((row?.count ?? 0) === 0) {
+    const hash = await Bun.password.hash(process.env.INITIAL_PASSWORD);
+    createUser(process.env.INITIAL_USERNAME, hash);
+    console.log(`Created initial user: ${process.env.INITIAL_USERNAME}`);
   }
-  return diff === 0;
 }
 
-const app = new Hono();
+type Variables = { userId: string };
+const app = new Hono<{ Variables: Variables }>();
 
 const CSP = [
   "default-src 'self'",
@@ -47,37 +55,75 @@ app.use("*", async (c, next) => {
   c.header("Cross-Origin-Opener-Policy", "same-origin");
 });
 
-app.use(
-  "/api/*",
-  cors({
-    origin: process.env.API_BASE_URL ?? [],
-    allowHeaders: ["Content-Type", "X-API-Key"],
-    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  })
-);
+// ─── Auth routes ────────────────────────────────────────────────────────────
+
+app.post("/auth/login", async (c) => {
+  let body: { username?: unknown; password?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+
+  const username = typeof body.username === "string" ? body.username.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  if (!username || !password) return c.json({ error: "Missing credentials" }, 400);
+
+  const user = findUserByUsername(username);
+  if (!user) return c.json({ error: "Invalid credentials" }, 401);
+
+  const valid = await Bun.password.verify(password, user.password_hash);
+  if (!valid) return c.json({ error: "Invalid credentials" }, 401);
+
+  const { id: sessionId } = createSession(user.id);
+  setCookie(c, COOKIE_NAME, sessionId, {
+    httpOnly: true,
+    sameSite: "Strict",
+    path: "/",
+    secure: SECURE_COOKIES,
+    maxAge: 30 * 24 * 60 * 60,
+  });
+  return c.json({ username });
+});
+
+app.post("/auth/logout", (c) => {
+  const sessionId = getCookie(c, COOKIE_NAME);
+  if (sessionId) deleteSession(sessionId);
+  deleteCookie(c, COOKIE_NAME, { path: "/" });
+  return c.json({ ok: true });
+});
+
+app.get("/auth/me", (c) => {
+  const sessionId = getCookie(c, COOKIE_NAME);
+  if (!sessionId) return c.json({ error: "Unauthorized" }, 401);
+  const session = getSession(sessionId);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  const user = getUserById(session.userId);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  return c.json({ username: user.username });
+});
+
+// ─── Session middleware for all API routes ───────────────────────────────────
 
 app.use("/api/*", async (c, next) => {
-  const key = c.req.header("X-API-Key");
-  if (!key || !safeEqual(key, API_KEY)) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
+  const sessionId = getCookie(c, COOKIE_NAME);
+  if (!sessionId) return c.json({ error: "Unauthorized" }, 401);
+  const session = getSession(sessionId);
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+  c.set("userId", session.userId);
   await next();
 });
 
-// GET /api/budget
-app.get("/api/budget", async (c) => {
-  const budget = await readBudget();
-  return c.json(budget);
+// ─── Budget API ──────────────────────────────────────────────────────────────
+
+app.get("/api/budget", (c) => {
+  return c.json(readBudget(c.get("userId")));
 });
 
-// PATCH /api/budget/:section/:id
 app.patch("/api/budget/:section/:id", async (c) => {
   const section = c.req.param("section") as Section;
   const id = c.req.param("id");
-
-  if (!SECTIONS.includes(section)) {
-    return c.json({ error: "Invalid section" }, 400);
-  }
+  if (!SECTIONS.includes(section)) return c.json({ error: "Invalid section" }, 400);
 
   let body: Record<string, unknown>;
   try {
@@ -86,36 +132,24 @@ app.patch("/api/budget/:section/:id", async (c) => {
     return c.json({ error: "Invalid JSON" }, 400);
   }
 
-  const budget = await readBudget();
-  const items = budget[section] as Array<Record<string, unknown>>;
-  const idx = items.findIndex((item) => item.id === id);
-
-  if (idx === -1) {
-    return c.json({ error: "Not found" }, 404);
-  }
-
-  if (body.label !== undefined) items[idx].label = String(body.label);
+  const patch: { label?: string; montant?: number; montant_annuel?: number } = {};
+  if (body.label !== undefined) patch.label = String(body.label);
 
   const amountKey = section === "depenses_annuelles" ? "montant_annuel" : "montant";
   if (body[amountKey] !== undefined) {
     const value = Number(body[amountKey]);
-    if (!Number.isFinite(value)) {
-      return c.json({ error: `Invalid ${amountKey}` }, 400);
-    }
-    items[idx][amountKey] = value;
+    if (!Number.isFinite(value)) return c.json({ error: `Invalid ${amountKey}` }, 400);
+    patch[amountKey] = value;
   }
 
-  await writeBudget(budget);
-  return c.json(items[idx]);
+  const updated = updateBudgetItem(c.get("userId"), section, id, patch);
+  if (!updated) return c.json({ error: "Not found" }, 404);
+  return c.json(updated);
 });
 
-// POST /api/budget/:section
 app.post("/api/budget/:section", async (c) => {
   const section = c.req.param("section") as Section;
-
-  if (!SECTIONS.includes(section)) {
-    return c.json({ error: "Invalid section" }, 400);
-  }
+  if (!SECTIONS.includes(section)) return c.json({ error: "Invalid section" }, 400);
 
   let body: Record<string, unknown>;
   try {
@@ -124,58 +158,31 @@ app.post("/api/budget/:section", async (c) => {
     return c.json({ error: "Invalid JSON" }, 400);
   }
 
-  const budget = await readBudget();
-  const items = budget[section] as Array<Record<string, unknown>>;
-
   const amountKey = section === "depenses_annuelles" ? "montant_annuel" : "montant";
   const value = Number(body[amountKey] ?? 0);
-  if (!Number.isFinite(value)) {
-    return c.json({ error: `Invalid ${amountKey}` }, 400);
-  }
+  if (!Number.isFinite(value)) return c.json({ error: `Invalid ${amountKey}` }, 400);
+  const label = String(body.label ?? "");
 
-  const newItem: Record<string, unknown> = {
-    id: uuidv4(),
-    label: String(body.label ?? ""),
-    [amountKey]: value,
-  };
+  const newItem =
+    section === "depenses_annuelles"
+      ? createBudgetItem(c.get("userId"), section, label, undefined, value)
+      : createBudgetItem(c.get("userId"), section, label, value, undefined);
 
-  items.push(newItem);
-  await writeBudget(budget);
   return c.json(newItem, 201);
 });
 
-// DELETE /api/budget/:section/:id
-app.delete("/api/budget/:section/:id", async (c) => {
+app.delete("/api/budget/:section/:id", (c) => {
   const section = c.req.param("section") as Section;
   const id = c.req.param("id");
+  if (!SECTIONS.includes(section)) return c.json({ error: "Invalid section" }, 400);
 
-  if (!SECTIONS.includes(section)) {
-    return c.json({ error: "Invalid section" }, 400);
-  }
-
-  const budget = await readBudget();
-  const items = budget[section] as Array<Record<string, unknown>>;
-  const idx = items.findIndex((item) => item.id === id);
-
-  if (idx === -1) {
-    return c.json({ error: "Not found" }, 404);
-  }
-
-  items.splice(idx, 1);
-  await writeBudget(budget);
+  const deleted = deleteBudgetItem(c.get("userId"), section, id);
+  if (!deleted) return c.json({ error: "Not found" }, 404);
   return c.json({ ok: true });
 });
 
-// Serve config.js dynamically so Cloudflare never caches the real API key
-app.get("/js/config.js", (c) => {
-  c.header("Content-Type", "application/javascript");
-  c.header("Cache-Control", "no-store");
-  return c.body(
-    `const CONFIG = {\n  API_BASE_URL: "${process.env.API_BASE_URL ?? ""}",\n  API_KEY: "change-me-to-your-api-key",\n};\n`
-  );
-});
+// ─── Static assets ───────────────────────────────────────────────────────────
 
-// Serve HTML, JS, CSS with no-store so Cloudflare never caches app logic
 function noStoreHandler(filePath: string, contentType: string) {
   return async (c: any) => {
     const file = Bun.file(filePath);
@@ -189,11 +196,19 @@ function noStoreHandler(filePath: string, contentType: string) {
 app.get("/", noStoreHandler("./public/index.html", "text/html; charset=utf-8"));
 app.get("/index.html", noStoreHandler("./public/index.html", "text/html; charset=utf-8"));
 app.get("/style.css", noStoreHandler("./public/style.css", "text/css; charset=utf-8"));
-app.get("/js/api.js", noStoreHandler("./public/js/api.js", "application/javascript; charset=utf-8"));
-app.get("/js/app.js", noStoreHandler("./public/js/app.js", "application/javascript; charset=utf-8"));
-app.get("/manifest.webmanifest", noStoreHandler("./public/manifest.webmanifest", "application/manifest+json; charset=utf-8"));
+app.get(
+  "/js/api.js",
+  noStoreHandler("./public/js/api.js", "application/javascript; charset=utf-8")
+);
+app.get(
+  "/js/app.js",
+  noStoreHandler("./public/js/app.js", "application/javascript; charset=utf-8")
+);
+app.get(
+  "/manifest.webmanifest",
+  noStoreHandler("./public/manifest.webmanifest", "application/manifest+json; charset=utf-8")
+);
 
-// Serve remaining static assets (images, fonts, etc.)
 app.use("/*", serveStatic({ root: "./public" }));
 app.use("/*", serveStatic({ path: "./public/index.html" }));
 

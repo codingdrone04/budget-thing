@@ -1,19 +1,14 @@
-function getApiKey() {
-  return localStorage.getItem("bt_api_key") ?? "";
-}
-
 async function apiFetch(path, options = {}) {
-  const res = await fetch(CONFIG.API_BASE_URL + path, {
+  const res = await fetch(path, {
     ...options,
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
-      "X-API-Key": getApiKey(),
       ...(options.headers ?? {}),
     },
   });
   if (res.status === 401) {
-    localStorage.removeItem("bt_api_key");
-    showLogin("Clé incorrecte, réessaie.");
+    showLogin("Session expirée, reconnecte-toi.");
     throw new Error("Unauthorized");
   }
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -21,6 +16,15 @@ async function apiFetch(path, options = {}) {
 }
 
 const api = {
+  login: (username, password) =>
+    fetch("/auth/login", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    }),
+  logout: () => fetch("/auth/logout", { method: "POST", credentials: "same-origin" }),
+  me: () => fetch("/auth/me", { credentials: "same-origin" }),
   getBudget: () => apiFetch("/api/budget"),
   patchItem: (section, id, data) =>
     apiFetch(`/api/budget/${section}/${id}`, {
