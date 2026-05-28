@@ -288,41 +288,55 @@ function showLogin(errorMsg = "") {
   if (errorMsg) {
     document.getElementById("login-error").textContent = errorMsg;
     document.getElementById("login-error").classList.remove("hidden");
+  } else {
+    document.getElementById("login-error").classList.add("hidden");
   }
-  document.getElementById("login-key-input").focus();
+  document.getElementById("login-username").focus();
 }
 
-function hideLogin() {
+function hideLogin(username) {
   document.getElementById("login-screen").classList.add("hidden");
   document.getElementById("app-layout").classList.remove("hidden");
+  document.getElementById("sidebar-username").textContent = username;
 }
 
 document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const key = document.getElementById("login-key-input").value.trim();
-  if (!key) return;
-  localStorage.setItem("bt_api_key", key);
-  await init();
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value;
+  if (!username || !password) return;
+  const res = await api.login(username, password);
+  if (res.ok) {
+    const data = await res.json();
+    await init(data.username);
+  } else {
+    showLogin("Identifiants incorrects.");
+  }
+});
+
+document.getElementById("btn-logout").addEventListener("click", async () => {
+  await api.logout();
+  showLogin();
 });
 
 // Init
-async function init() {
+async function init(username) {
   try {
     budget = await api.getBudget();
-    hideLogin();
+    hideLogin(username);
     renderAll();
   } catch (err) {
-    localStorage.removeItem("bt_api_key");
-    if (err.message === "Unauthorized") {
-      showLogin("Clé API incorrecte.");
-    } else {
-      showLogin(err.message);
-    }
+    if (err.message !== "Unauthorized") showLogin(err.message);
   }
 }
 
-if (localStorage.getItem("bt_api_key")) {
-  init();
-} else {
-  showLogin();
-}
+// On page load, check if a session cookie is already valid
+(async () => {
+  const res = await api.me();
+  if (res.ok) {
+    const { username } = await res.json();
+    await init(username);
+  } else {
+    showLogin();
+  }
+})();
