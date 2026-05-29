@@ -10,6 +10,7 @@ import {
   createSession,
   getSession,
   deleteSession,
+  deleteExpiredSessions,
   findUserByUsername,
   createUser,
   getUserById,
@@ -17,6 +18,55 @@ import {
 
 const PORT = Number(process.env.PORT ?? 3000);
 const SECURE_COOKIES = process.env.SECURE_COOKIES === "true";
+
+// Input bounds (guard against resource-exhaustion via oversized payloads)
+const MAX_USERNAME_LENGTH = 64;
+const MAX_PASSWORD_LENGTH = 128;
+const MAX_LABEL_LENGTH = 200;
+
+// Fixed hash used to equalize login timing when a username does not exist,
+// preventing user-enumeration via response-time side channel.
+const DUMMY_PASSWORD_HASH = await Bun.password.hash("bt-timing-equalizer");
+
+// In-memory failed-login limiter, keyed by client IP (sliding window).
+const RL_WINDOW_MS = 15 * 60 * 1000;
+const RL_MAX_FAILURES = 8;
+const loginFailures = new Map<string, number[]>();
+
+function clientIp(c: { req: { header: (name: string) => string | undefined } }): string {
+  return (
+    c.req.header("cf-connecting-ip") ??
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown"
+  );
+}
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const hits = (loginFailures.get(ip) ?? []).filter((t) => now - t < RL_WINDOW_MS);
+  if (hits.length === 0) loginFailures.delete(ip);
+  else loginFailures.set(ip, hits);
+  return hits.length >= RL_MAX_FAILURES;
+}
+
+function recordLoginFailure(ip: string): void {
+  const now = Date.now();
+  const hits = (loginFailures.get(ip) ?? []).filter((t) => now - t < RL_WINDOW_MS);
+  hits.push(now);
+  loginFailures.set(ip, hits);
+}
+
+// Periodically drop expired sessions and stale rate-limit entries.
+setInterval(
+  () => {
+    deleteExpiredSessions();
+    const now = Date.now();
+    for (const [ip, hits] of loginFailures) {
+      if (hits.every((t) => now - t >= RL_WINDOW_MS)) loginFailures.delete(ip);
+    }
+  },
+  60 * 60 * 1000
+).unref();
 
 // Create initial user on first boot if env vars are set and no users exist
 if (process.env.INITIAL_USERNAME && process.env.INITIAL_PASSWORD) {
@@ -53,11 +103,19 @@ app.use("*", async (c, next) => {
   c.header("Referrer-Policy", "no-referrer");
   c.header("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
   c.header("Cross-Origin-Opener-Policy", "same-origin");
+  if (SECURE_COOKIES) {
+    c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
 });
 
 // ─── Auth routes ────────────────────────────────────────────────────────────
 
 app.post("/auth/login", async (c) => {
+  const ip = clientIp(c);
+  if (isRateLimited(ip)) {
+    return c.json({ error: "Too many attempts, try again later" }, 429);
+  }
+
   let body: { username?: unknown; password?: unknown };
   try {
     body = await c.req.json();
@@ -68,13 +126,23 @@ app.post("/auth/login", async (c) => {
   const username = typeof body.username === "string" ? body.username.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
   if (!username || !password) return c.json({ error: "Missing credentials" }, 400);
+  if (username.length > MAX_USERNAME_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    return c.json({ error: "Invalid credentials" }, 401);
+  }
 
+  // Always run a verify (against a dummy hash when the user is absent) so that
+  // response time does not reveal whether the username exists.
   const user = findUserByUsername(username);
-  if (!user) return c.json({ error: "Invalid credentials" }, 401);
+  const valid = await Bun.password.verify(
+    password,
+    user?.password_hash ?? DUMMY_PASSWORD_HASH
+  );
+  if (!user || !valid) {
+    recordLoginFailure(ip);
+    return c.json({ error: "Invalid credentials" }, 401);
+  }
 
-  const valid = await Bun.password.verify(password, user.password_hash);
-  if (!valid) return c.json({ error: "Invalid credentials" }, 401);
-
+  loginFailures.delete(ip);
   const { id: sessionId } = createSession(user.id);
   setCookie(c, COOKIE_NAME, sessionId, {
     httpOnly: true,
@@ -133,7 +201,7 @@ app.patch("/api/budget/:section/:id", async (c) => {
   }
 
   const patch: { label?: string; montant?: number; montant_annuel?: number } = {};
-  if (body.label !== undefined) patch.label = String(body.label);
+  if (body.label !== undefined) patch.label = String(body.label).slice(0, MAX_LABEL_LENGTH);
 
   const amountKey = section === "depenses_annuelles" ? "montant_annuel" : "montant";
   if (body[amountKey] !== undefined) {
@@ -161,7 +229,7 @@ app.post("/api/budget/:section", async (c) => {
   const amountKey = section === "depenses_annuelles" ? "montant_annuel" : "montant";
   const value = Number(body[amountKey] ?? 0);
   if (!Number.isFinite(value)) return c.json({ error: `Invalid ${amountKey}` }, 400);
-  const label = String(body.label ?? "");
+  const label = String(body.label ?? "").slice(0, MAX_LABEL_LENGTH);
 
   const newItem =
     section === "depenses_annuelles"

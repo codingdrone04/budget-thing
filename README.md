@@ -1,13 +1,14 @@
 # budget-thing
 
-Application de budget mensuel personnel. Backend Hono sur Bun, frontend vanilla JS, stockage JSON plat.
+Application de budget mensuel multi-utilisateurs. Backend Hono sur Bun, frontend vanilla JS, stockage SQLite.
 
 ## Stack
 
 - **Runtime** : Bun
 - **Backend** : Hono (TypeScript)
 - **Frontend** : HTML/CSS/JS vanilla (servi par Hono)
-- **Auth** : header `X-API-Key` sur toutes les routes API
+- **Stockage** : SQLite (`bun:sqlite`) — `data/budget.db`
+- **Auth** : login username/password → cookie de session `HttpOnly` (argon2id via `Bun.password`)
 - **Process manager** : systemd
 - **CI/CD** : GitHub Actions → webhook HMAC-SHA256
 
@@ -27,14 +28,18 @@ bun install
 
 ```bash
 cp .env.example .env
-# Éditer .env et renseigner API_KEY, WEBHOOK_SECRET, etc.
+# Éditer .env : INITIAL_USERNAME / INITIAL_PASSWORD (premier user), WEBHOOK_SECRET, etc.
 ```
 
-### 3. Premier lancement — seed
+### 3. Premier utilisateur
+
+Le premier utilisateur est créé automatiquement au démarrage si la base est vide et que
+`INITIAL_USERNAME` / `INITIAL_PASSWORD` sont renseignés dans `.env`.
+
+Pour ajouter d'autres utilisateurs ensuite :
 
 ```bash
-bun run seed
-# Crée budget.json avec les données initiales
+SEED_USERNAME=smila SEED_PASSWORD=<mot-de-passe-fort> bun run seed
 ```
 
 ### 4. Lancer manuellement
@@ -58,16 +63,14 @@ sudo systemctl enable --now budget-thing-webhook
 
 ---
 
-## Frontend web (Mac)
+## Frontend web
 
-Ouvrir `public/js/config.js` et renseigner :
+Le frontend web est servi par Hono sur la même origine que l'API et s'authentifie
+via le cookie de session (écran de login username/password). Aucune configuration de
+clé n'est nécessaire côté web.
 
-```js
-const CONFIG = {
-  API_BASE_URL: "https://votre-tunnel.example.com", // ou IP locale
-  API_KEY: "votre-clé",
-};
-```
+> ⚠️ L'app mobile (`mobile/`) utilise encore l'ancienne auth par `X-API-Key`, qui n'est
+> plus gérée par le backend — à migrer vers les sessions.
 
 ---
 
@@ -84,10 +87,19 @@ Ajouter dans `Settings → Secrets and variables → Actions` :
 
 ## API
 
-Toutes les routes exigent `X-API-Key: <valeur>` dans le header.
+Auth :
 
 ```
-GET    /api/budget              → tout le budget
+POST   /auth/login              → login → set cookie de session
+POST   /auth/logout             → logout → clear cookie
+GET    /auth/me                 → utilisateur courant
+```
+
+Toutes les routes `/api/*` exigent un cookie de session valide (`bt_session`) et sont
+scopées au `user_id` de la session.
+
+```
+GET    /api/budget              → tout le budget de l'utilisateur connecté
 PATCH  /api/budget/:section/:id → modifier label/montant
 POST   /api/budget/:section     → ajouter une ligne
 DELETE /api/budget/:section/:id → supprimer une ligne
@@ -95,4 +107,10 @@ DELETE /api/budget/:section/:id → supprimer une ligne
 
 Sections valides : `revenus`, `depenses_communes`, `depenses_fixes`, `depenses_annuelles`
 
-s
+## Sécurité
+
+- Mots de passe hashés argon2id (`Bun.password`), requêtes SQL paramétrées, données isolées par `user_id`.
+- Cookie de session `HttpOnly` + `SameSite=Strict` (+ `Secure` si `SECURE_COOKIES=true`), TTL 30 jours.
+- En-têtes : CSP stricte, HSTS (si HTTPS), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
+- `/auth/login` : rate-limiting anti-brute-force (8 échecs / 15 min / IP → `429`), temps de réponse constant (anti-énumération), bornes de longueur sur les entrées.
+- Webhook de déploiement : signature HMAC-SHA256 (comparaison constante) + anti-rejeu par timestamp (±5 min).

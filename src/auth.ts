@@ -29,6 +29,11 @@ export function deleteSession(sessionId: string): void {
   db.run("DELETE FROM sessions WHERE id = ?", [sessionId]);
 }
 
+export function deleteExpiredSessions(): number {
+  const now = Math.floor(Date.now() / 1000);
+  return db.run("DELETE FROM sessions WHERE expires_at <= ?", [now]).changes;
+}
+
 export function findUserByUsername(
   username: string
 ): { id: string; password_hash: string } | null {
