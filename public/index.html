@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+
   <!-- Login screen -->
   <div class="login-screen hidden" id="login-screen">
     <div class="login-box">
@@ -22,111 +23,92 @@
       <h1 class="login-title">budget-thing</h1>
       <p class="login-subtitle">Connecte-toi pour accéder</p>
       <form class="login-form" id="login-form">
-        <input
-          type="text"
-          id="login-username"
-          class="login-input"
-          placeholder="Nom d'utilisateur"
-          autocomplete="username"
-          autocapitalize="none"
-        />
-        <input
-          type="password"
-          id="login-password"
-          class="login-input"
-          placeholder="Mot de passe"
-          autocomplete="current-password"
-        />
+        <input type="text" id="login-username" class="login-input" placeholder="Nom d'utilisateur" autocomplete="username" autocapitalize="none" />
+        <input type="password" id="login-password" class="login-input" placeholder="Mot de passe" autocomplete="current-password" />
         <button type="submit" class="btn-primary login-btn">Accéder</button>
       </form>
       <p class="login-error hidden" id="login-error"></p>
     </div>
   </div>
 
-  <div class="layout hidden" id="app-layout">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <img src="/favicon.png" width="20" height="20" alt="budget-thing" class="brand-logo" />
+  <!-- App -->
+  <div class="app-layout hidden" id="app-layout">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-start">
+        <img src="/favicon.png" width="18" height="18" alt="" class="brand-logo" />
         <span class="brand-name">budget-thing</span>
       </div>
-      <div class="sidebar-user">
-        <span class="sidebar-username" id="sidebar-username"></span>
+      <div class="topbar-end">
+        <span class="topbar-username" id="topbar-username"></span>
         <button class="btn-logout" id="btn-logout" title="Déconnexion">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
         </button>
       </div>
-
-      <nav class="sidebar-nav">
-        <a class="nav-link active" data-target="section-revenus" href="#">
-          <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Revenus
-        </a>
-        <a class="nav-link" data-target="section-depenses_communes" href="#">
-          <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          Dépenses communes
-        </a>
-        <a class="nav-link" data-target="section-depenses_fixes" href="#">
-          <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          Dépenses fixes
-        </a>
-        <a class="nav-link" data-target="section-depenses_annuelles" href="#">
-          <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Annuelles
-        </a>
-      </nav>
-
-      <!-- Summary panel -->
-      <div class="summary-panel">
-        <div class="summary-title">Bilan mensuel</div>
-
-        <div class="summary-row">
-          <span class="summary-label">Revenus</span>
-          <span class="summary-value positive" id="sum-revenus">—</span>
-        </div>
-        <div class="summary-divider"></div>
-        <div class="summary-row">
-          <span class="summary-label">Communes</span>
-          <span class="summary-value" id="sum-communes">—</span>
-        </div>
-        <div class="summary-row">
-          <span class="summary-label">Fixes</span>
-          <span class="summary-value" id="sum-fixes">—</span>
-        </div>
-        <div class="summary-row">
-          <span class="summary-label">Annuelles ÷12</span>
-          <span class="summary-value" id="sum-annuelles">—</span>
-        </div>
-        <div class="summary-row summary-row-total">
-          <span class="summary-label">Total dépenses</span>
-          <span class="summary-value negative" id="sum-depenses">—</span>
-        </div>
-        <div class="summary-divider"></div>
-        <div class="summary-row summary-row-roulement">
-          <span class="summary-label">Roulement</span>
-          <span class="summary-value roulement-value" id="sum-roulement">—</span>
-        </div>
-
-        <div class="progress-bar">
-          <div class="progress-fill positive" id="progress-bar-fill"></div>
-        </div>
-        <div class="progress-label" id="progress-bar-label"></div>
-      </div>
-    </aside>
+    </header>
 
     <!-- Main content -->
-    <main class="main-content" id="main-content">
-      <div class="page-header">
-        <h1 class="page-title">Budget mensuel</h1>
-        <span class="page-subtitle">Double-cliquez sur un montant ou libellé pour le modifier</span>
+    <main class="main-content">
+
+      <!-- Hero row: roulement + bilan -->
+      <div class="hero-row">
+        <div class="hero-roulement">
+          <div class="hero-sup">ROULEMENT</div>
+          <div class="hero-amount" id="hero-amount">—</div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-bar-fill"></div>
+          </div>
+          <div class="progress-label" id="progress-bar-label"></div>
+        </div>
+
+        <div class="hero-bilan">
+          <div class="bilan-title">BILAN DU MOIS</div>
+          <div class="bilan-rows">
+            <div class="bilan-row">
+              <span class="bilan-label">Revenus</span>
+              <span class="bilan-value bilan-positive" id="sum-revenus">—</span>
+            </div>
+            <div class="bilan-row">
+              <span class="bilan-label">Dépenses communes</span>
+              <span class="bilan-value" id="sum-communes">—</span>
+            </div>
+            <div class="bilan-row">
+              <span class="bilan-label">Dépenses fixes</span>
+              <span class="bilan-value" id="sum-fixes">—</span>
+            </div>
+            <div class="bilan-row">
+              <span class="bilan-label">Annuelles ÷ 12</span>
+              <span class="bilan-value" id="sum-annuelles">—</span>
+            </div>
+            <div class="bilan-row bilan-row-total">
+              <span class="bilan-label">Total dépenses</span>
+              <span class="bilan-value bilan-negative" id="sum-depenses">—</span>
+            </div>
+          </div>
+        </div>
       </div>
 
+      <!-- Mobile mini-stats (hidden on desktop) -->
+      <div class="mini-stats">
+        <div class="mini-stat">
+          <span class="mini-label">Revenus</span>
+          <span class="mini-value mini-positive" id="mini-revenus">—</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-label">Dépenses</span>
+          <span class="mini-value mini-negative" id="mini-depenses">—</span>
+        </div>
+      </div>
+
+      <!-- Sections grid -->
       <div class="sections-grid">
         <div class="budget-section" id="section-revenus"></div>
         <div class="budget-section" id="section-depenses_communes"></div>
         <div class="budget-section" id="section-depenses_fixes"></div>
         <div class="budget-section" id="section-depenses_annuelles"></div>
       </div>
+
     </main>
   </div>
 
