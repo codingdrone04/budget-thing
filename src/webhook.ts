@@ -2,6 +2,9 @@ import { $ } from "bun";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const WEBHOOK_PORT = Number(process.env.WEBHOOK_PORT ?? 9000);
+// Bind to loopback by default: cloudflared connects locally, so there is no reason
+// to expose the deploy endpoint on the LAN / public IPv6 (which would bypass Cloudflare).
+const WEBHOOK_HOST = process.env.WEBHOOK_HOST ?? "127.0.0.1";
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_CLOCK_SKEW_SEC = 300;
 
@@ -32,6 +35,7 @@ async function verifySignature(body: string, signature: string | null): Promise<
 
 Bun.serve({
   port: WEBHOOK_PORT,
+  hostname: WEBHOOK_HOST,
   async fetch(req) {
     const url = new URL(req.url);
 
@@ -89,4 +93,4 @@ Bun.serve({
   },
 });
 
-console.log(`Webhook server listening on port ${WEBHOOK_PORT}`);
+console.log(`Webhook server listening on ${WEBHOOK_HOST}:${WEBHOOK_PORT}`);
