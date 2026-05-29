@@ -1,22 +1,22 @@
 # budget-thing
 
-Application de budget mensuel multi-utilisateurs. Backend Hono sur Bun, frontend vanilla JS, stockage SQLite.
+Multi-user monthly budget app. Hono backend on Bun, vanilla JS frontend, SQLite storage.
 
 ## Stack
 
-- **Runtime** : Bun
-- **Backend** : Hono (TypeScript)
-- **Frontend** : HTML/CSS/JS vanilla (servi par Hono)
-- **Stockage** : SQLite (`bun:sqlite`) — `data/budget.db`
-- **Auth** : login username/password → cookie de session `HttpOnly` (argon2id via `Bun.password`)
-- **Process manager** : systemd
-- **CI/CD** : GitHub Actions → webhook HMAC-SHA256
+- **Runtime**: Bun
+- **Backend**: Hono (TypeScript)
+- **Frontend**: vanilla HTML/CSS/JS (served by Hono)
+- **Storage**: SQLite (`bun:sqlite`) — `data/budget.db`
+- **Auth**: username/password login → `HttpOnly` session cookie (argon2id via `Bun.password`)
+- **Process manager**: systemd
+- **CI/CD**: GitHub Actions → HMAC-SHA256 webhook
 
 ---
 
 ## Setup (Thinkpad Linux)
 
-### 1. Cloner et installer
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/codingdrone04/budget-thing.git
@@ -24,35 +24,35 @@ cd budget-thing
 bun install
 ```
 
-### 2. Configurer l'environnement
+### 2. Configure the environment
 
 ```bash
 cp .env.example .env
-# Éditer .env : INITIAL_USERNAME / INITIAL_PASSWORD (premier user), WEBHOOK_SECRET, etc.
+# Edit .env: INITIAL_USERNAME / INITIAL_PASSWORD (first user), WEBHOOK_SECRET, etc.
 ```
 
-### 3. Premier utilisateur
+### 3. First user
 
-Le premier utilisateur est créé automatiquement au démarrage si la base est vide et que
-`INITIAL_USERNAME` / `INITIAL_PASSWORD` sont renseignés dans `.env`.
+The first user is created automatically on startup if the database is empty and
+`INITIAL_USERNAME` / `INITIAL_PASSWORD` are set in `.env`.
 
-Pour ajouter d'autres utilisateurs ensuite :
+To add more users afterwards:
 
 ```bash
-SEED_USERNAME=smila SEED_PASSWORD=<mot-de-passe-fort> bun run seed
+SEED_USERNAME=smila SEED_PASSWORD=<strong-password> bun run seed
 ```
 
-### 4. Lancer manuellement
+### 4. Run manually
 
 ```bash
-bun run start    # serveur API + frontend
-bun run webhook  # serveur webhook (dans un autre terminal)
+bun run start    # API + frontend server
+bun run webhook  # webhook server (in another terminal)
 ```
 
-### 5. Installer les services systemd
+### 5. Install the systemd services
 
 ```bash
-# Remplacer YOUR_LINUX_USER dans les fichiers .service
+# Replace YOUR_LINUX_USER in the .service files
 sudo cp systemd/budget-thing.service /etc/systemd/system/
 sudo cp systemd/budget-thing-webhook.service /etc/systemd/system/
 
@@ -63,54 +63,54 @@ sudo systemctl enable --now budget-thing-webhook
 
 ---
 
-## Frontend web
+## Web frontend
 
-Le frontend web est servi par Hono sur la même origine que l'API et s'authentifie
-via le cookie de session (écran de login username/password). Aucune configuration de
-clé n'est nécessaire côté web.
+The web frontend is served by Hono on the same origin as the API and authenticates
+via the session cookie (username/password login screen). No key configuration is
+needed on the web side.
 
-> ⚠️ L'app mobile (`mobile/`) utilise encore l'ancienne auth par `X-API-Key`, qui n'est
-> plus gérée par le backend — à migrer vers les sessions.
+> ⚠️ The mobile app (`mobile/`) still uses the old `X-API-Key` auth, which the backend
+> no longer handles — it needs to be migrated to sessions.
 
 ---
 
 ## GitHub Actions secrets
 
-Ajouter dans `Settings → Secrets and variables → Actions` :
+Add under `Settings → Secrets and variables → Actions`:
 
-| Secret            | Valeur                                          |
-|-------------------|-------------------------------------------------|
-| `WEBHOOK_SECRET`  | Même valeur que dans le `.env` du Thinkpad      |
-| `WEBHOOK_URL`     | URL publique du webhook, ex. `https://…/deploy` |
+| Secret            | Value                                            |
+|-------------------|--------------------------------------------------|
+| `WEBHOOK_SECRET`  | Same value as in the Thinkpad's `.env`           |
+| `WEBHOOK_URL`     | Public webhook URL, e.g. `https://…/deploy`      |
 
 ---
 
 ## API
 
-Auth :
+Auth:
 
 ```
-POST   /auth/login              → login → set cookie de session
-POST   /auth/logout             → logout → clear cookie
-GET    /auth/me                 → utilisateur courant
+POST   /auth/login              → log in → set session cookie
+POST   /auth/logout             → log out → clear cookie
+GET    /auth/me                 → current user
 ```
 
-Toutes les routes `/api/*` exigent un cookie de session valide (`bt_session`) et sont
-scopées au `user_id` de la session.
+All `/api/*` routes require a valid session cookie (`bt_session`) and are scoped to
+the session's `user_id`.
 
 ```
-GET    /api/budget              → tout le budget de l'utilisateur connecté
-PATCH  /api/budget/:section/:id → modifier label/montant
-POST   /api/budget/:section     → ajouter une ligne
-DELETE /api/budget/:section/:id → supprimer une ligne
+GET    /api/budget              → the logged-in user's full budget
+PATCH  /api/budget/:section/:id → update label/amount
+POST   /api/budget/:section     → add a row
+DELETE /api/budget/:section/:id → delete a row
 ```
 
-Sections valides : `revenus`, `depenses_communes`, `depenses_fixes`, `depenses_annuelles`
+Valid sections: `revenus`, `depenses_communes`, `depenses_fixes`, `depenses_annuelles`
 
-## Sécurité
+## Security
 
-- Mots de passe hashés argon2id (`Bun.password`), requêtes SQL paramétrées, données isolées par `user_id`.
-- Cookie de session `HttpOnly` + `SameSite=Strict` (+ `Secure` si `SECURE_COOKIES=true`), TTL 30 jours.
-- En-têtes : CSP stricte, HSTS (si HTTPS), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
-- `/auth/login` : rate-limiting anti-brute-force (8 échecs / 15 min / IP → `429`), temps de réponse constant (anti-énumération), bornes de longueur sur les entrées.
-- Webhook de déploiement : signature HMAC-SHA256 (comparaison constante) + anti-rejeu par timestamp (±5 min).
+- Passwords hashed with argon2id (`Bun.password`), parameterized SQL queries, data isolated per `user_id`.
+- Session cookie `HttpOnly` + `SameSite=Strict` (+ `Secure` when `SECURE_COOKIES=true`), 30-day TTL.
+- Headers: strict CSP, HSTS (when over HTTPS), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
+- `/auth/login`: brute-force rate limiting (8 failures / 15 min / IP → `429`), constant-time response (anti-enumeration), length bounds on inputs.
+- Deploy webhook: HMAC-SHA256 signature (constant-time comparison) + replay protection via timestamp (±5 min).
