@@ -5,3 +5,4 @@ budget.json
 bun.lockb
 public/js/config.js
 mobile/src/config.ts
+data/
