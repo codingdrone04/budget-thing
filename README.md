@@ -19,8 +19,8 @@ Multi-user monthly budget app. Hono backend on Bun, vanilla JS frontend, SQLite 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/codingdrone04/budget-thing.git
-cd budget-thing
+git clone https://github.com/codingdrone04/budget-thing.git ~/apps/budget-thing
+cd ~/apps/budget-thing
 bun install
 ```
 

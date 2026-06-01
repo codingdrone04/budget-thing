@@ -5,8 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=YOUR_LINUX_USER
-WorkingDirectory=/home/YOUR_LINUX_USER/budget-thing
-EnvironmentFile=/home/YOUR_LINUX_USER/budget-thing/.env
+WorkingDirectory=/home/YOUR_LINUX_USER/apps/budget-thing
+EnvironmentFile=/home/YOUR_LINUX_USER/apps/budget-thing/.env
 ExecStartPre=/usr/local/bin/bun run src/seed.ts
 ExecStart=/usr/local/bin/bun run src/server.ts
 Restart=on-failure
