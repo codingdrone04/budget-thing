@@ -11,7 +11,7 @@
     "lint": "bunx eslint src/ public/js/"
   },
   "dependencies": {
-    "hono": "^4.5.0",
+    "hono": "^4.13.11",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
