@@ -19,7 +19,14 @@ export default [
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "script",
-      globals: { CONFIG: "readonly", api: "readonly" },
+      globals: {
+        api: "readonly",
+        CONFIG: "readonly",
+        document: "readonly",
+        fetch: "readonly",
+        showLogin: "readonly",
+        window: "readonly",
+      },
     },
     rules: {
       "no-unused-vars": "warn",
