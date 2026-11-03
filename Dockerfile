@@ -8,7 +8,10 @@ RUN bun install --frozen-lockfile --production
 FROM base AS runner
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN mkdir -p data
+RUN mkdir -p data && chown bun:bun data
+
+# bun is uid 1000, which owns ./data on the host
+USER bun
 
 EXPOSE 3000
 CMD ["bun", "run", "src/server.ts"]
